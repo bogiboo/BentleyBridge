@@ -1,0 +1,23 @@
+# Visual Studio / build
+.vs/
+bin/
+obj/
+*.user
+*.suo
+
+# Local Bentley runtime: DLL, tasks, results, logs and backups
+runtime/current/*
+runtime/inbox/*
+runtime/results/*
+runtime/logs/*
+runtime/backups/*
+!runtime/current/.gitkeep
+!runtime/inbox/.gitkeep
+!runtime/results/.gitkeep
+!runtime/logs/.gitkeep
+!runtime/backups/.gitkeep
+
+# Local configuration and secrets
+*.local.json
+*.local.ps1
+*.log

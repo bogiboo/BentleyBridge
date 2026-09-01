@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "taskId": "BEN-HELLO-001",
+  "operation": "SHOW_MESSAGE",
+  "parameters": {
+    "message": "Hello World â€” BentleyBridge"
+  }
+}

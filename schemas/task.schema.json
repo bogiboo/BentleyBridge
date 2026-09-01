@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bogiboo/BentleyBridge/schemas/task.schema.json",
+  "title": "BentleyBridge task",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "operation"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "taskId": { "type": "string", "minLength": 1 },
+    "operation": { "type": "string", "enum": ["SHOW_MESSAGE"] },
+    "parameters": { "type": "object" }
+  }
+}
