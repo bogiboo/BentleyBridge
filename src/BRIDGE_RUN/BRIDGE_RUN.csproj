@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+
+  <!-- $(MS) = OpenCities Map Ultimate install root. Postavlja ga MicroStationDeveloperShell.bat
+       ili Build-BRIDGE_RUN.ps1; ovdje je default za slucaj izravnog builda. -->
+  <PropertyGroup Condition=" '$(MS)' == '' ">
+    <MS>C:\Program Files\Bentley\Map CONNECT Edition\MapUltimate</MS>
+  </PropertyGroup>
+  <PropertyGroup>
+    <!-- Normaliziraj: $(MS) uvijek zavrsava backslashom (HintPath je "$(MS)ustation.dll"). -->
+    <MS>$([MSBuild]::EnsureTrailingSlash('$(MS)'))</MS>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+    <ProjectGuid>{7F1C2A64-0B8E-4E2A-9C3D-1A2B3C4D5E6F}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>BridgeRun</RootNamespace>
+    <AssemblyName>BRIDGE_RUN</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <!-- Build isporucuje izravno u kanonsku runtime mapu (bez $(MS)mdlapps). -->
+    <OutputPath>$(MSBuildProjectDirectory)\..\..\runtime\current\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <LangVersion>7.3</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Bentley reference (minimalni set za Hello World; $(MS)-relativno, private=False) -->
+    <Reference Include="ustation">
+      <HintPath>$(MS)ustation.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Bentley.DgnPlatformNET">
+      <HintPath>$(MS)Bentley.DgnPlatformNET.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Bentley.GeometryNET.Structs">
+      <HintPath>$(MS)Bentley.GeometryNET.Structs.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Bentley.MicroStation.Interfaces.1.0">
+      <HintPath>$(MS)Assemblies\Bentley.MicroStation.Interfaces.1.0.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <!-- .NET Framework -->
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="AddInMain.cs" />
+    <Compile Include="Keyin.cs" />
+    <Compile Include="BridgeRunner.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- AddIn framework trazi embedded resource imena CommandTable.xml -->
+    <EmbeddedResource Include="commands.xml">
+      <LogicalName>CommandTable.xml</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+  Key-in tablica za BRIDGE_RUN. Shema/obrazac iz SDK primjera
+  ...\examples\Elements\ManagedFenceExample\commands.xml
+  (EmbeddedResource LogicalName = CommandTable.xml).
+
+  R5 napomena: nijedan managed SDK primjer ne registrira JEDNORIJECNI key-in
+  (svi su >= 2 rijeci). Zato se registriraju OBA oblika iste naredbe:
+    - "BRIDGE_RUN" (jedna rijec s podvlakom) -> primarni, kako trazi zadatak/CFG
+    - "BRIDGE RUN" (dvije rijeci)            -> alias u dokazanom obliku
+  Prvi kontrolirani test potvrduje koji oblik OpenCities prihvaca.
+-->
+<KeyinTree xmlns="http://www.bentley.com/schemas/1.0/MicroStation/AddIn/KeyinTree.xsd">
+
+  <RootKeyinTable ID="root">
+    <Keyword CommandWord="BRIDGE_RUN" />
+    <Keyword SubtableRef="BridgeSub" CommandWord="BRIDGE">
+      <Options Required="true" />
+    </Keyword>
+  </RootKeyinTable>
+
+  <SubKeyinTables>
+    <KeyinTable ID="BridgeSub">
+      <Keyword CommandWord="RUN" />
+    </KeyinTable>
+  </SubKeyinTables>
+
+  <KeyinHandlers>
+    <KeyinHandler Keyin="BRIDGE_RUN" Function="BridgeRun.Keyin.Run" />
+    <KeyinHandler Keyin="BRIDGE RUN" Function="BridgeRun.Keyin.Run" />
+  </KeyinHandlers>
+
+</KeyinTree>
