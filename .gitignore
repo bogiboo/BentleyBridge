@@ -5,13 +5,15 @@ obj/
 *.user
 *.suo
 
-# Local Bentley runtime: DLL, tasks, results, logs and backups
+# Local Bentley runtime. Samo kanonski DLL i hash ulaze u Git.
 runtime/current/*
 runtime/inbox/*
 runtime/results/*
 runtime/logs/*
 runtime/backups/*
 !runtime/current/.gitkeep
+!runtime/current/BRIDGE_RUN.dll
+!runtime/current/BRIDGE_RUN.dll.sha256
 !runtime/inbox/.gitkeep
 !runtime/results/.gitkeep
 !runtime/logs/.gitkeep
