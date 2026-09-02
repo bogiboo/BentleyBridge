@@ -2,6 +2,10 @@
 
 Generički managed C# AddIn za OpenCities Map Ultimate 2025. Bridge se učitava u Bentleyjev proces i na ručnu naredbu `BRIDGE_RUN` čita strogo definirane JSON naloge.
 
+## Granica sustava
+
+`BRIDGE_RUN.dll` je pomoćni infrastrukturni alat. Nije aplikacija Etažiranje, nije njezin poslovni modul i ne smije sadržavati poslovna pravila Etažiranja. Aplikacija ostaje u zasebnom repozitoriju `bogiboo/Etaziranje`; Bridge smije primati samo generičke, provjerene Bentley operacije kroz JSON.
+
 ## Kanonske lokalne putanje
 
 - AddIn: `C:\AITools\BentleyBridge\runtime\current\BRIDGE_RUN.dll`
