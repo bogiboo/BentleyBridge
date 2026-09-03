@@ -37,7 +37,7 @@ namespace BridgeRun
         private static readonly string[] ReadOnlyOperations = { "READ_INTERFACE_STATE" };
 
         private const int SupportedSchemaVersion = 1;
-        private const string RunnerVersion = "0.4.1-display-modes";
+        private const string RunnerVersion = "0.4.2-display-modes";
 
         internal static void Execute()
         {
@@ -88,7 +88,14 @@ namespace BridgeRun
                 if (!isReadOnlyOp && IsCompleted(taskId))
                 {
                     ShowMessage("BRIDGE_RUN: zadatak '" + taskId + "' je vec izvrsen (no-op).");
-                    Report(taskId, "ALREADY_DONE", "Ponovno pokretanje istog dovrsenog taskId-a. Nista nije napravljeno.");
+                    // NE prepisuj puni rezultat prethodnog (uspjesnog) izvrsenja ALREADY_DONE stub-om.
+                    // Stub se pise samo ako rezultat jos ne postoji. (Bug ispravljen: v0.2.1 za read-only,
+                    // sada i za mutirajuce operacije.)
+                    string existingResult = Path.Combine(ResultsDir, Sanitize(taskId) + ".json");
+                    Log(DateTime.Now.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture) +
+                        "  [ALREADY_DONE]  task=" + taskId + "  Ponovno pokretanje dovrsenog taskId-a; rezultat NIJE pregazen.");
+                    if (!File.Exists(existingResult))
+                        Report(taskId, "ALREADY_DONE", "Ponovno pokretanje istog dovrsenog taskId-a. Nista nije napravljeno.");
                     return;
                 }
 

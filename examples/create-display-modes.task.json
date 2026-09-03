@@ -11,6 +11,7 @@
   "parameters": {
     "baseDisplayStyle": "Illustration",
     "defaultMode": "ETAZ_PUNA_ISPUNA",
+    "overwriteExisting": false,
     "modes": [
       { "name": "ETAZ_PUNA_ISPUNA",   "fillEnabled": true,  "transparencyPercent": 0,  "edgesVisible": true },
       { "name": "ETAZ_TRANSPARENTNO", "fillEnabled": true,  "transparencyPercent": 70, "edgesVisible": true },

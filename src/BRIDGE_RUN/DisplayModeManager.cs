@@ -93,6 +93,7 @@ namespace BridgeRun
             string defaultMode = GetString(p, "defaultMode", "ETAZ_PUNA_ISPUNA");
             byte[] bg = ParseRgb(p, "backgroundRgb");
             bool saveSettings = ParseBool(p, "saveSettings", true);
+            bool overwriteExisting = ParseBool(p, "overwriteExisting", false);
             List<Dictionary<string, object>> modes = ParseModes(p);
 
             extra["requested"] = new Dictionary<string, object>
@@ -100,7 +101,7 @@ namespace BridgeRun
                 { "baseDisplayStyle", baseStyleName }, { "defaultMode", defaultMode },
                 { "modes", ModesEcho(modes) },
                 { "backgroundRgb", new List<object> { (int)bg[0], (int)bg[1], (int)bg[2] } },
-                { "saveSettings", saveSettings }
+                { "saveSettings", saveSettings }, { "overwriteExisting", overwriteExisting }
             };
 
             object session = GetSessionInstance();
@@ -138,7 +139,7 @@ namespace BridgeRun
                 Type dsm = FindType(DisplayStyleMgrTypeName);
                 if (dsm == null) throw new Exception("NEPOZNATO: tip DisplayStyleManager nije pronadjen");
 
-                // --- CONFLICT provjera: nijedan ciljni stil ne smije vec postojati ---
+                // --- postojeci ciljni stilovi ---
                 var existing = new List<string>();
                 foreach (var m in modes)
                 {
@@ -146,14 +147,30 @@ namespace BridgeRun
                     if (string.IsNullOrEmpty(name)) continue;
                     if (DsExists(dsm, name, dgnFile)) existing.Add(name);
                 }
-                if (existing.Count > 0)
+                if (existing.Count > 0 && !overwriteExisting)
                 {
+                    // CONFLICT: ne prepisujem tiho (BEN-UI-003 spec). Bez ijedne izmjene.
                     status = "CONFLICT";
                     extra["conflict"] = "Vec postoje stilovi: " + string.Join(", ", existing.ToArray()) +
-                                        ". Ne prepisujem tiho (BEN-UI-003 spec). Ukloni ih rucno ili dokumentiranom migracijom, pa ponovi s novim taskId.";
+                                        ". Za dokumentiranu migraciju pokreni s parameters.overwriteExisting=true i novim taskId.";
                     steps.Add(Step("displayStyles.conflict", "CONFLICT", (string)extra["conflict"]));
                     summary = "CONFLICT: stil(ovi) vec postoje: " + string.Join(", ", existing.ToArray()) + ". Bez izmjena.";
                     return extra;
+                }
+                if (existing.Count > 0)
+                {
+                    // Dokumentirana migracija: eksplicitno ukloni pa ponovno stvori.
+                    var removed = new List<object>();
+                    foreach (string name in existing)
+                    {
+                        object rr = TryStatic(dsm, "RemoveDisplayStyleFromFile", new object[] { name, dgnFile });
+                        removed.Add(new Dictionary<string, object> {
+                            { "name", name }, { "removed", !DsExists(dsm, name, dgnFile) },
+                            { "call", rr is string ? (string)rr : "RemoveDisplayStyleFromFile OK" } });
+                    }
+                    extra["overwriteMigration"] = removed;
+                    steps.Add(Step("displayStyles.overwrite", "OK",
+                        "overwriteExisting=true: uklonjeni postojeci stilovi (" + string.Join(", ", existing.ToArray()) + ") prije ponovnog stvaranja"));
                 }
 
                 // --- bazni stil ---
