@@ -187,7 +187,20 @@ namespace BridgeRun
                 steps.Add(Step("verify.before", "WARN", "citanje 'before' nije uspjelo: " + ExMsg(ex)));
             }
 
-            // ---------- 4) MANAGED izmjene View postavki ----------
+            // ---------- 4) VIEW ON/OFF preko key-ina (prvo - da samo ciljni view ostane ziv) ----------
+            // Redoslijed: prvo zatvori/otvori poglede (djeluje na zive prozore), pa tek onda
+            // managed izmjene ViewInfo + SynchViewDisplay na preostali otvoreni view. Tako se
+            // zivi viewport i pohranjeni ViewInfo ne razilaze prije Save Settings.
+            var keyinResults = new List<object>();
+            foreach (int v in closeViews) DoKeyin(session, "VIEW OFF " + v, keyinResults);
+            foreach (int v in openViews) DoKeyin(session, "VIEW ON " + v, keyinResults);
+            extra["keyins"] = keyinResults;
+            steps.Add(Step("views.keyin", "PRETPOSTAVKA",
+                "Session.Keyin: VIEW OFF " + string.Join(",", IntStrs(closeViews)) +
+                " ; VIEW ON " + string.Join(",", IntStrs(openViews)) +
+                " (tokeni CMD_VIEW_ON_n/CMD_VIEW_OFF_n iz SDK Mstn\\cmdlist.r.h; doslovni key-in je kanonski oblik)"));
+
+            // ---------- 5) MANAGED izmjene View postavki ----------
             int errCount = 0;
             int changedViews = 0;
             bool anyManagedChange = false;
@@ -215,7 +228,7 @@ namespace BridgeRun
                         object vi = Inv(viewGroup, "GetViewInformation", idx);
                         if (vi == null) { pv["result"] = "NEPOZNATO: GetViewInformation(" + idx + ") je null"; errCount++; perView.Add(pv); continue; }
 
-                        // 4a) grid OFF + OverrideBackground ON preko ViewGeometryInformation.ViewFlags (settable)
+                        // 5a) grid OFF + OverrideBackground ON preko ViewGeometryInformation.ViewFlags (settable)
                         object gi = Inv(vi, "GetGeometryInformation");
                         object vf = Prop(gi, "ViewFlags");
                         bool gridBefore = ToBool(Prop(vf, "Grid"));
@@ -224,7 +237,7 @@ namespace BridgeRun
                         SetProp(vf, "OverrideBackground", true);
                         SetProp(gi, "ViewFlags", vf);
 
-                        // 4b) rotacija Top - samo View 1
+                        // 5b) rotacija Top - samo View 1
                         bool didRot = false;
                         if (viewNo == 1 && "Top".Equals(view1Orientation, StringComparison.OrdinalIgnoreCase))
                         {
@@ -238,12 +251,15 @@ namespace BridgeRun
 
                         Inv(vi, "SetGeometryInformation", gi);
 
-                        // 4c) bijela radna pozadina
+                        // 5c) bijela radna pozadina
                         Inv(vi, "SetBackgroundColor", white);
 
-                        // 4d) upisi ViewInformation natrag u ViewGroup i osvjezi
+                        // 5d) upisi ViewInformation natrag u ViewGroup i osvjezi zivi prikaz.
+                        // ViewGroup.SynchViewDisplay(Int32,bool,bool,bool) - potvrdjeno Int32
+                        // (runtime v0.3.0 je bacao ArgumentException na UInt32; SDK C++ header ViewGroup.h:386
+                        // deklarira UInt32, managed wrapper koristi Int32).
                         Inv(viewGroup, "SetViewInformation", vi, idx);
-                        try { Inv(viewGroup, "SynchViewDisplay", (uint)idx, false, false, true); }
+                        try { Inv(viewGroup, "SynchViewDisplay", idx, false, false, true); }
                         catch (Exception exSync) { pv["synchWarn"] = ExMsg(exSync); }
 
                         anyManagedChange = true;
@@ -274,17 +290,40 @@ namespace BridgeRun
                 steps.Add(Step("views.managed", "ERROR", "NEPOZNATO: " + ExMsg(ex)));
             }
 
-            // ---------- 5) VIEW ON/OFF preko key-ina (PRETPOSTAVKA - cmdlist.r.h tokeni) ----------
-            var keyinResults = new List<object>();
-            foreach (int v in closeViews) DoKeyin(session, "VIEW OFF " + v, keyinResults);
-            foreach (int v in openViews) DoKeyin(session, "VIEW ON " + v, keyinResults);
-            extra["keyins"] = keyinResults;
-            steps.Add(Step("views.keyin", "PRETPOSTAVKA",
-                "Session.Keyin: VIEW OFF " + string.Join(",", IntStrs(closeViews)) +
-                " ; VIEW ON " + string.Join(",", IntStrs(openViews)) +
-                " (tokeni CMD_VIEW_ON_n/CMD_VIEW_OFF_n iz SDK Mstn\\cmdlist.r.h; doslovni key-in je kanonski oblik)"));
+            // ---------- 6) osvjezavanje zivog prikaza otvorenih pogleda ----------
+            // Managed ViewInfo izmjene se pouzdano upisuju u DGN (potvrdjeno verifyAfter + sha256Changed),
+            // ali sam upis ne prebojava vec otvoreni viewport. Zato za svaki otvoreni view jos i:
+            //   - VIEW TOP <n>   (token CMD_VIEW_TOP, VIEWING, cmdlist.r.h) - samo ako je trazeno "Top"
+            //   - UPDATE VIEW <n>(token CMD_UPDATE_VIEW, VIEWING, cmdlist.r.h) - prisilni redraw
+            //   - Viewport.SetNeedsRefresh() na aktivnom viewportu (potvrdjeno refleksijom)
+            var refreshResults = new List<object>();
+            foreach (int v in openViews)
+            {
+                if ("Top".Equals(view1Orientation, StringComparison.OrdinalIgnoreCase))
+                    DoKeyin(session, "VIEW TOP " + v, refreshResults);
+                DoKeyin(session, "UPDATE VIEW " + v, refreshResults);
+            }
+            try
+            {
+                object vp = Inv(session, "GetActiveViewport");
+                if (vp != null && !(vp is string))
+                {
+                    Inv(vp, "SetNeedsRefresh");
+                    refreshResults.Add(new Dictionary<string, object> {
+                        { "call", "Viewport.SetNeedsRefresh()" }, { "result", "OK" } });
+                }
+            }
+            catch (Exception ex)
+            {
+                refreshResults.Add(new Dictionary<string, object> {
+                    { "call", "Viewport.SetNeedsRefresh()" }, { "result", "NEPOZNATO: " + ExMsg(ex) } });
+            }
+            extra["liveRefresh"] = refreshResults;
+            steps.Add(Step("views.liveRefresh", "PRETPOSTAVKA",
+                "VIEW TOP / UPDATE VIEW za otvorene poglede (" + string.Join(",", IntStrs(openViews)) +
+                ") + Viewport.SetNeedsRefresh(); tokeni CMD_VIEW_TOP / CMD_UPDATE_VIEW iz SDK Mstn\\cmdlist.r.h"));
 
-            // ---------- 6) aktivni View ----------
+            // ---------- Aktivni View ----------
             steps.Add(Step("view.active", "PRETPOSTAVKA",
                 "Trazeni aktivni View = " + activeView + ". Nema potvrdjenog namjenskog API-ja/key-ina za 'aktivni view'. " +
                 "Kad je otvoren samo View " + activeView + ", MicroStation ga cini tekucim po eliminaciji. " +

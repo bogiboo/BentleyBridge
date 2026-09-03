@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "taskId": "BEN-UI-002-APPLY-BASE",
+  "taskId": "BEN-UI-002-APPLY-BASE-2",
   "operation": "APPLY_INTERFACE_BASELINE",
   "target": {
     "workspace": "ETAZIRANJE_RAZVOJ",

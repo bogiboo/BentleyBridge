@@ -36,7 +36,7 @@ namespace BridgeRun
         private static readonly string[] ReadOnlyOperations = { "READ_INTERFACE_STATE" };
 
         private const int SupportedSchemaVersion = 1;
-        private const string RunnerVersion = "0.3.0-ui-baseline";
+        private const string RunnerVersion = "0.3.1-ui-baseline";
 
         internal static void Execute()
         {
