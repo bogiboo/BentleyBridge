@@ -19,9 +19,12 @@
 |  * ISPUNA (Fill on/off)     -> NIJE u Display Styleu. To je per-View postavka:           |
 |      ViewFlags.Fill {get;set} (DisplayStyleFlags NEMA Fill zastavicu).                   |
 |      -> zato je Fill "prateca View postavka" koju operacija primjenjuje uz stil.        |
-|  * BIJELA POZADINA          -> per-View (ViewFlags.OverrideBackground + SetBackgroundColor), |
-|      kao BEN-UI-002; DisplayStyleFlags.OverrideBackgroundColor se drzi na false da stil  |
-|      ne pregazi View pozadinu.                                                          |
+|  * BIJELA POZADINA (OBAVEZNA za svaki nacin) -> per-View postavka:                       |
+|      ViewFlags.OverrideBackground=true + ViewInformation.SetBackgroundColor(255,255,255). |
+|      Imenovani Display Style NE moze nositi boju pozadine: managed API ima samo           |
+|      DisplayStyleFlags.OverrideBackgroundColor (bool) BEZ settera boje. Zato se ta        |
+|      zastavica drzi na FALSE (stil ne pregazi View), a bijela se osigurava kao prateca    |
+|      View postavka u svih 8 pogleda (AssertWhiteBaselineAllViews) pri svakoj primjeni.    |
 |  * ByLevel simbolika        -> ocuvana: ViewDisplayOverrides.OverrideElementColor/LineStyle/Weight = false. |
 |                                                                                        |
 | Zbog Fill-a operacija je razdvojena kako trazi BEN-UI-003 spec:                          |
@@ -216,9 +219,11 @@ namespace BridgeRun
                         ci["inFile"] = DsExists(dsm, name, dgnFile);
                         ci["displayMode"] = Convert.ToString(Prop(writtenStyle, "DisplayMode"), CultureInfo.InvariantCulture);
                         ci["displayVisibleEdges"] = SafeGet(rbFlags, "DisplayVisibleEdges");
+                        ci["overrideBackgroundColor"] = SafeGet(rbFlags, "OverrideBackgroundColor"); // mora ostati false: bijela dolazi iz View postavke
                         ci["overrideUseTransparency"] = SafeGet(rbOvr, "OverrideUseTransparency");
                         ci["overrideTransparency"] = SafeGet(rbOvr, "OverrideTransparency");
                         ci["companionViewFill"] = fillEnabled;
+                        ci["companionViewBackground"] = new List<object> { (int)bg[0], (int)bg[1], (int)bg[2] };
                         anyChange = true;
 
                         if (string.Equals(name, defaultMode, StringComparison.OrdinalIgnoreCase))
@@ -238,6 +243,11 @@ namespace BridgeRun
                 extra["displayStyles"] = createdInfo;
                 steps.Add(Step("displayStyles.create", errCount == 0 ? "OK" : "PARTIAL",
                     "stvoreno " + CountCreated(createdInfo) + "/" + modes.Count + " imenovanih stilova"));
+
+                // --- bijela pozadina je OBAVEZNA za svaki nacin; drzimo je kao pratecu View postavku
+                //     u svih 8 pogleda (imenovani Display Style NE moze nositi boju pozadine - managed API
+                //     ima samo DisplayStyleFlags.OverrideBackgroundColor bez settera boje; drzimo ga false). ---
+                extra["whiteBackgroundAllViews"] = AssertWhiteBaselineAllViews(viewGroup, bg, steps);
 
                 // --- primijeni defaultMode na View 1 + prateca View postavka + ocuvaj Top/grid/pozadinu ---
                 if (defaultStyleObj != null)
@@ -359,6 +369,45 @@ namespace BridgeRun
                 : "Nacin '" + mode + "' nije primijenjen (" + errCount + " pogr.). Backup: " + backupPath;
             if (status != "OK") extra["incident"] = summary + ". Bez auto-rollbacka.";
             return extra;
+        }
+
+        // =====================================================================================
+        //  Bijela radna pozadina (OBAVEZNA) - prateca View postavka u svih 8 pogleda
+        // =====================================================================================
+        private static Dictionary<string, object> AssertWhiteBaselineAllViews(object viewGroup, byte[] bg, List<object> steps)
+        {
+            var res = new Dictionary<string, object>();
+            var per = new List<object>();
+            int ok = 0;
+            Type rgbType = FindType(RgbColorDefTypeName);
+            for (int idx = 0; idx < 8; idx++)
+            {
+                var d = new Dictionary<string, object> { { "view", idx + 1 } };
+                try
+                {
+                    object vi = Inv(viewGroup, "GetViewInformation", idx);
+                    if (vi == null) { d["result"] = "NEPOZNATO: ViewInformation null"; per.Add(d); continue; }
+                    object gi = Inv(vi, "GetGeometryInformation");
+                    object vf = Prop(gi, "ViewFlags");
+                    TrySet(vf, "OverrideBackground", true);
+                    TrySet(vf, "Grid", false);
+                    SetProp(gi, "ViewFlags", vf);
+                    Inv(vi, "SetGeometryInformation", gi);
+                    Inv(vi, "SetBackgroundColor", MakeRgb(rgbType, bg));
+                    Inv(viewGroup, "SetViewInformation", vi, idx);
+                    try { Inv(viewGroup, "SynchViewDisplay", idx, false, false, true); } catch { }
+                    d["result"] = "OK";
+                    ok++;
+                }
+                catch (Exception ex) { d["result"] = "GRESKA: " + ExMsg(ex); }
+                per.Add(d);
+            }
+            res["backgroundRgb"] = new List<object> { (int)bg[0], (int)bg[1], (int)bg[2] };
+            res["viewsOk"] = ok;
+            res["perView"] = per;
+            steps.Add(Step("whiteBackground", ok == 8 ? "OK" : "PARTIAL",
+                "bijela pozadina RGB " + bg[0] + "," + bg[1] + "," + bg[2] + " + OverrideBackground ON u " + ok + "/8 pogleda"));
+            return res;
         }
 
         // =====================================================================================
