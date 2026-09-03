@@ -458,37 +458,48 @@ namespace BridgeRun
                 int viewNumber = ToInt(SafeGet(vi, "ViewNumber"), 0);
                 int idx = viewNumber; // ViewInformation.ViewNumber je 0-baziran
 
-                // 1) primijeni imenovani Display Style na pogled
+                object dgnFile = TryCall(vi, "GetRootDgnFile");
+                if (dgnFile is string) dgnFile = null;
+
+                // 1) upisi stil u POHRANJENI ViewInfo: CopySettingsTo (persist + asocijacija) + ApplyDisplayStyleToView
+                try { Inv(style, "CopySettingsTo", vi, dgnFile); d["copySettingsTo"] = "OK"; }
+                catch (Exception exC) { d["copySettingsTo"] = "NEPOZNATO: " + ExMsg(exC); }
                 object st = TryStatic(dsm, "ApplyDisplayStyleToView", new[] { style, vi });
                 d["applyDisplayStyleToView"] = Convert.ToString(st, CultureInfo.InvariantCulture);
 
-                // 2) prateca View postavka: Fill + master Transparency toggle; ocuvaj grid OFF + bijela pozadina
-                object gi = Inv(vi, "GetGeometryInformation");
-                object vf = Prop(gi, "ViewFlags");
-                SetProp(vf, "Fill", fill);
-                TrySet(vf, "Transparency", true);   // master toggle da se prozirnost stila vidi
-                TrySet(vf, "Grid", false);
-                TrySet(vf, "OverrideBackground", true);
-
-                // 3) ocuvaj Top rotaciju na View 1
-                if (isView1)
-                {
-                    object rot = GetTopRotation(FindType(ViewInfoTypeName), vi);
-                    if (rot != null) TrySet(gi, "Rotation", rot);
-                    d["rotationTopReasserted"] = rot != null;
-                }
-                SetProp(gi, "ViewFlags", vf);
-                Inv(vi, "SetGeometryInformation", gi);
-
-                // 4) bijela radna pozadina
-                object white = MakeRgb(FindType(RgbColorDefTypeName), bg);
-                Inv(vi, "SetBackgroundColor", white);
-
+                // 2) prateca View postavka na POHRANJENOM ViewInfo (Fill, master Transparency, grid OFF,
+                //    OverrideBackground ON + bijela). ApplyDisplayStyleToView zna iskljuciti override
+                //    pozadine (stil ima OverrideBackgroundColor=false) - zato ovo IDE POSLIJE stila.
+                CompanionToViewInfo(vi, fill, isView1, bg, d, "stored");
                 Inv(viewGroup, "SetViewInformation", vi, idx);
                 try { Inv(viewGroup, "SynchViewDisplay", idx, false, false, true); }
                 catch (Exception exS) { d["synchWarn"] = ExMsg(exS); }
 
-                // 5) View 1 jedini otvoren + aktivan (key-in, kao BEN-UI-002)
+                // 3) PUSH na ZIVI aktivni viewport - pohranjeni ViewInfo ne prebojava vec otvoreni
+                //    prozor; ApplyDisplayStyleToView na zivom je iskljucio bijelu, pa je ovdje vracamo.
+                if (isView1)
+                {
+                    try
+                    {
+                        object vp = Inv(session, "GetActiveViewport");
+                        if (vp != null && !(vp is string))
+                        {
+                            object lvi = Inv(vp, "GetViewInformation");
+                            if (lvi != null && !(lvi is string))
+                            {
+                                TryStatic(dsm, "ApplyDisplayStyleToView", new[] { style, lvi });
+                                CompanionToViewInfo(lvi, fill, true, bg, d, "live");
+                                object sw = Inv(vp, "SynchWithViewInformation", true, true);
+                                d["liveViewportSynch"] = Convert.ToString(sw, CultureInfo.InvariantCulture);
+                            }
+                            else d["liveViewport"] = "NEPOZNATO: Viewport.GetViewInformation() = " + lvi;
+                        }
+                        else d["liveViewport"] = "NEPOZNATO: Session.GetActiveViewport() = " + vp;
+                    }
+                    catch (Exception exL) { d["liveViewport"] = "NEPOZNATO: " + ExMsg(exL); }
+                }
+
+                // 4) View 1 jedini otvoren + aktivan (key-in, kao BEN-UI-002)
                 if (isView1)
                 {
                     var ki = new List<object>();
@@ -505,7 +516,32 @@ namespace BridgeRun
             }
             extra["apply"] = d;
             steps.Add(Step("apply", d.ContainsKey("result") && "OK".Equals(d["result"]) ? "OK" : "PARTIAL",
-                "stil '" + mode + "' + Fill=" + fill + " na " + (isView1 ? "View 1 (uz Top/grid/pozadinu)" : "trazeni pogled")));
+                "stil '" + mode + "' + Fill=" + fill + " na " + (isView1 ? "View 1 (uz Top/grid/pozadinu + push na zivi viewport)" : "trazeni pogled")));
+        }
+
+        /// <summary>Prateca View postavka (Fill, master Transparency, grid OFF, bijela pozadina, Top za View 1)
+        /// na danom ViewInformation objektu - koristi se i za pohranjeni i za zivi (Viewport) ViewInfo.</summary>
+        private static void CompanionToViewInfo(object vi, bool fill, bool isView1, byte[] bg, Dictionary<string, object> d, string tag)
+        {
+            try
+            {
+                object gi = Inv(vi, "GetGeometryInformation");
+                object vf = Prop(gi, "ViewFlags");
+                SetProp(vf, "Fill", fill);
+                TrySet(vf, "Transparency", true);
+                TrySet(vf, "Grid", false);
+                TrySet(vf, "OverrideBackground", true);
+                if (isView1)
+                {
+                    object rot = GetTopRotation(FindType(ViewInfoTypeName), vi);
+                    if (rot != null) TrySet(gi, "Rotation", rot);
+                }
+                SetProp(gi, "ViewFlags", vf);
+                Inv(vi, "SetGeometryInformation", gi);
+                Inv(vi, "SetBackgroundColor", MakeRgb(FindType(RgbColorDefTypeName), bg));
+                d["companion_" + tag] = "OK (Fill=" + fill + ", OverrideBackground=ON, bg=" + bg[0] + "," + bg[1] + "," + bg[2] + ")";
+            }
+            catch (Exception ex) { d["companion_" + tag] = "GRESKA: " + ExMsg(ex); }
         }
 
         // =====================================================================================
