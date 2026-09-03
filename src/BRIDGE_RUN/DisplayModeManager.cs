@@ -225,10 +225,11 @@ namespace BridgeRun
                         SetProp(clone, "DisplayMode", baseModeEnum);
                         SetProp(clone, "IsUsableForViews", true);
 
-                        // flags: obrisi vidljivi; stil NE pregazi View pozadinu
+                        // flags: samo obrisi vidljivi. OverrideBackgroundColor se NE dira -
+                        // klon nasljedjuje vrijednost baznog "Illustration" stila (koji na ekranu daje
+                        // bijelu uz View override). Postavljanje na false je u v0.4.4 davalo CRNU pozadinu.
                         object flags = Inv(clone, "GetFlags");
                         SetProp(flags, "DisplayVisibleEdges", edgesVisible);
-                        TrySet(flags, "OverrideBackgroundColor", false);
                         Inv(clone, "SetFlags", flags);
 
                         // overrides: globalna prozirnost; ByLevel simbolika ocuvana (nema element override)
