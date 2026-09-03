@@ -11,6 +11,7 @@ runtime/inbox/*
 runtime/results/*
 runtime/logs/*
 runtime/backups/*
+runtime/state/*
 !runtime/current/.gitkeep
 !runtime/current/BRIDGE_RUN.dll
 !runtime/current/BRIDGE_RUN.dll.sha256

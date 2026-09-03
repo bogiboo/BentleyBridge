@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "taskId": { "type": "string", "minLength": 1 },
-    "operation": { "type": "string", "enum": ["SHOW_MESSAGE"] },
+    "operation": { "type": "string", "enum": ["SHOW_MESSAGE", "READ_INTERFACE_STATE"] },
     "parameters": { "type": "object" }
   }
 }

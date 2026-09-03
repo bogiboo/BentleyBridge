@@ -29,9 +29,9 @@ namespace BridgeRun
         private static string StateDir { get { return Path.Combine(RuntimeRoot, "state"); } }
         private static string CompletedLog { get { return Path.Combine(StateDir, "completed.log"); } }
 
-        private static readonly string[] SupportedOperations = { "SHOW_MESSAGE" };
+        private static readonly string[] SupportedOperations = { "SHOW_MESSAGE", "READ_INTERFACE_STATE" };
         private const int SupportedSchemaVersion = 1;
-        private const string RunnerVersion = "0.1.0-hello";
+        private const string RunnerVersion = "0.2.0-ui-inventory";
 
         internal static void Execute()
         {
@@ -100,6 +100,22 @@ namespace BridgeRun
                     return;
                 }
 
+                if (operation == "READ_INTERFACE_STATE")
+                {
+                    // Strogo read-only: cita trenutno stanje OpenCities sucelja i pogleda.
+                    // NE dira DGN/seed/model/View postavke/preferencije, NE radi Save Settings.
+                    Dictionary<string, object> p = GetObject(task, "parameters");
+                    string summary;
+                    Dictionary<string, object> inventory = InterfaceStateReader.Build(p, out summary);
+
+                    var extra = new Dictionary<string, object> { { "inventory", inventory } };
+                    ShowMessage("BRIDGE_RUN: inventura sucelja zavrsena (read-only).\n" + summary +
+                                "\nRezultat: " + Path.Combine(ResultsDir, Sanitize(taskId) + ".json"));
+                    MarkCompleted(taskId);
+                    ReportResult(taskId, "OK", "READ_INTERFACE_STATE inventura zavrsena. " + summary, extra);
+                    return;
+                }
+
                 Report(taskId, "UNSUPPORTED_OP", "Neocekivana operacija: " + operation);
             }
             catch (Exception ex)
@@ -134,6 +150,15 @@ namespace BridgeRun
 
         private static void Report(string taskId, string status, string detail)
         {
+            ReportResult(taskId, status, detail, null);
+        }
+
+        /// <summary>
+        /// Zapisuje rezultat u runtime\results\&lt;taskId&gt;.json. Ako je <paramref name="extra"/> zadan,
+        /// njegovi kljucevi se spajaju u rezultat (npr. "inventory" za READ_INTERFACE_STATE).
+        /// </summary>
+        private static void ReportResult(string taskId, string status, string detail, Dictionary<string, object> extra)
+        {
             string ts = DateTime.Now.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
             Log(ts + "  [" + status + "]  task=" + taskId + "  " + detail);
 
@@ -148,7 +173,12 @@ namespace BridgeRun
                     { "timestamp", ts },
                     { "touchedDgn", false }
                 };
-                string json = new JavaScriptSerializer().Serialize(result);
+                if (extra != null)
+                    foreach (var kv in extra)
+                        result[kv.Key] = kv.Value;
+
+                var serializer = new JavaScriptSerializer { MaxJsonLength = 32 * 1024 * 1024 };
+                string json = serializer.Serialize(result);
                 string file = Path.Combine(ResultsDir, Sanitize(taskId) + ".json");
                 File.WriteAllText(file, json, new UTF8Encoding(false));
             }
