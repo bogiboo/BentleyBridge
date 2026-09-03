@@ -30,8 +30,13 @@ namespace BridgeRun
         private static string CompletedLog { get { return Path.Combine(StateDir, "completed.log"); } }
 
         private static readonly string[] SupportedOperations = { "SHOW_MESSAGE", "READ_INTERFACE_STATE" };
+
+        // Read-only operacije se smiju ponavljati: ne troše idempotentni no-op i
+        // svaki poziv daje svjež snimak stanja. NE smiju pregaziti puni rezultat stub-om.
+        private static readonly string[] ReadOnlyOperations = { "READ_INTERFACE_STATE" };
+
         private const int SupportedSchemaVersion = 1;
-        private const string RunnerVersion = "0.2.0-ui-inventory";
+        private const string RunnerVersion = "0.2.1-ui-inventory";
 
         internal static void Execute()
         {
@@ -76,8 +81,10 @@ namespace BridgeRun
                     return;
                 }
 
-                // --- idempotentnost ---
-                if (IsCompleted(taskId))
+                bool isReadOnlyOp = Array.IndexOf(ReadOnlyOperations, operation) >= 0;
+
+                // --- idempotentnost (samo za operacije koje mijenjaju stanje) ---
+                if (!isReadOnlyOp && IsCompleted(taskId))
                 {
                     ShowMessage("BRIDGE_RUN: zadatak '" + taskId + "' je vec izvrsen (no-op).");
                     Report(taskId, "ALREADY_DONE", "Ponovno pokretanje istog dovrsenog taskId-a. Nista nije napravljeno.");
@@ -108,10 +115,11 @@ namespace BridgeRun
                     string summary;
                     Dictionary<string, object> inventory = InterfaceStateReader.Build(p, out summary);
 
+                    // Namjerno BEZ MarkCompleted: read-only op se smije ponovno pokrenuti
+                    // (svjež snimak) i nikad ne pregazi puni rezultat ALREADY_DONE stub-om.
                     var extra = new Dictionary<string, object> { { "inventory", inventory } };
                     ShowMessage("BRIDGE_RUN: inventura sucelja zavrsena (read-only).\n" + summary +
                                 "\nRezultat: " + Path.Combine(ResultsDir, Sanitize(taskId) + ".json"));
-                    MarkCompleted(taskId);
                     ReportResult(taskId, "OK", "READ_INTERFACE_STATE inventura zavrsena. " + summary, extra);
                     return;
                 }
