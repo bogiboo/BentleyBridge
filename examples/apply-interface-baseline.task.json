@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "taskId": "BEN-UI-002-APPLY-BASE",
+  "operation": "APPLY_INTERFACE_BASELINE",
+  "target": {
+    "workspace": "ETAZIRANJE_RAZVOJ",
+    "workset": "TEST_OSNOVA",
+    "fileName": "Test_2.dgn",
+    "forbidFileName": "ETAZIRANJE_3D_METRIC.dgn"
+  },
+  "parameters": {
+    "activeView": 1,
+    "view1Orientation": "Top",
+    "openViews": [1],
+    "closeViews": [2, 3, 4, 5, 6, 7, 8],
+    "gridEnabled": false,
+    "backgroundRgb": [255, 255, 255],
+    "saveSettings": true,
+    "createBackup": true
+  }
+}

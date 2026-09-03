@@ -8,7 +8,21 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "taskId": { "type": "string", "minLength": 1 },
-    "operation": { "type": "string", "enum": ["SHOW_MESSAGE", "READ_INTERFACE_STATE"] },
+    "operation": {
+      "type": "string",
+      "enum": ["SHOW_MESSAGE", "READ_INTERFACE_STATE", "APPLY_INTERFACE_BASELINE"]
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Obavezni ciljni kontekst za mutirajuce operacije (APPLY_*). Runner prekida (ABORTED) ako se stvarni WorkSpace/WorkSet/datoteka ne poklapaju.",
+      "properties": {
+        "workspace":      { "type": "string" },
+        "workset":        { "type": "string" },
+        "fileName":       { "type": "string" },
+        "forbidFileName": { "type": "string" }
+      }
+    },
     "parameters": { "type": "object" }
   }
 }

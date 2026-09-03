@@ -66,6 +66,7 @@
     <Compile Include="Keyin.cs" />
     <Compile Include="BridgeRunner.cs" />
     <Compile Include="InterfaceStateReader.cs" />
+    <Compile Include="InterfaceBaselineApplier.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
 

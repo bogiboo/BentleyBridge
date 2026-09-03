@@ -29,14 +29,14 @@ namespace BridgeRun
         private static string StateDir { get { return Path.Combine(RuntimeRoot, "state"); } }
         private static string CompletedLog { get { return Path.Combine(StateDir, "completed.log"); } }
 
-        private static readonly string[] SupportedOperations = { "SHOW_MESSAGE", "READ_INTERFACE_STATE" };
+        private static readonly string[] SupportedOperations = { "SHOW_MESSAGE", "READ_INTERFACE_STATE", "APPLY_INTERFACE_BASELINE" };
 
         // Read-only operacije se smiju ponavljati: ne troše idempotentni no-op i
         // svaki poziv daje svjež snimak stanja. NE smiju pregaziti puni rezultat stub-om.
         private static readonly string[] ReadOnlyOperations = { "READ_INTERFACE_STATE" };
 
         private const int SupportedSchemaVersion = 1;
-        private const string RunnerVersion = "0.2.1-ui-inventory";
+        private const string RunnerVersion = "0.3.0-ui-baseline";
 
         internal static void Execute()
         {
@@ -121,6 +121,29 @@ namespace BridgeRun
                     ShowMessage("BRIDGE_RUN: inventura sucelja zavrsena (read-only).\n" + summary +
                                 "\nRezultat: " + Path.Combine(ResultsDir, Sanitize(taskId) + ".json"));
                     ReportResult(taskId, "OK", "READ_INTERFACE_STATE inventura zavrsena. " + summary, extra);
+                    return;
+                }
+
+                if (operation == "APPLY_INTERFACE_BASELINE")
+                {
+                    // Mutirajuca: mijenja SAMO View/UI postavke aktivnog Test_2.dgn (BEN-UI-002).
+                    // Idempotentnost po taskId je vec provjerena gore (nije read-only op).
+                    string applySummary;
+                    string applyStatus;
+                    Dictionary<string, object> extra =
+                        InterfaceBaselineApplier.Apply(task, taskId, out applySummary, out applyStatus);
+
+                    if (applyStatus == "OK")
+                        MarkCompleted(taskId);
+
+                    string prefix =
+                        applyStatus == "OK"      ? "BRIDGE_RUN: osnovni profil sucelja primijenjen." :
+                        applyStatus == "ABORTED" ? "BRIDGE_RUN: APPLY_INTERFACE_BASELINE PREKINUT (bez izmjena)." :
+                        applyStatus == "PARTIAL" ? "BRIDGE_RUN: APPLY_INTERFACE_BASELINE DJELOMICNO - vidi rezultat." :
+                                                   "BRIDGE_RUN: APPLY_INTERFACE_BASELINE GRESKA - vidi rezultat.";
+                    ShowMessage(prefix + "\n" + applySummary +
+                                "\nRezultat: " + Path.Combine(ResultsDir, Sanitize(taskId) + ".json"));
+                    ReportResult(taskId, applyStatus, "APPLY_INTERFACE_BASELINE: " + applySummary, extra);
                     return;
                 }
 
