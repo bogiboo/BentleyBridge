@@ -10,7 +10,13 @@
     "taskId": { "type": "string", "minLength": 1 },
     "operation": {
       "type": "string",
-      "enum": ["SHOW_MESSAGE", "READ_INTERFACE_STATE", "APPLY_INTERFACE_BASELINE"]
+      "enum": [
+        "SHOW_MESSAGE",
+        "READ_INTERFACE_STATE",
+        "APPLY_INTERFACE_BASELINE",
+        "CREATE_DISPLAY_MODES",
+        "APPLY_DISPLAY_MODE"
+      ]
     },
     "target": {
       "type": "object",

@@ -29,14 +29,15 @@ namespace BridgeRun
         private static string StateDir { get { return Path.Combine(RuntimeRoot, "state"); } }
         private static string CompletedLog { get { return Path.Combine(StateDir, "completed.log"); } }
 
-        private static readonly string[] SupportedOperations = { "SHOW_MESSAGE", "READ_INTERFACE_STATE", "APPLY_INTERFACE_BASELINE" };
+        private static readonly string[] SupportedOperations =
+            { "SHOW_MESSAGE", "READ_INTERFACE_STATE", "APPLY_INTERFACE_BASELINE", "CREATE_DISPLAY_MODES", "APPLY_DISPLAY_MODE" };
 
         // Read-only operacije se smiju ponavljati: ne troše idempotentni no-op i
         // svaki poziv daje svjež snimak stanja. NE smiju pregaziti puni rezultat stub-om.
         private static readonly string[] ReadOnlyOperations = { "READ_INTERFACE_STATE" };
 
         private const int SupportedSchemaVersion = 1;
-        private const string RunnerVersion = "0.3.1-ui-baseline";
+        private const string RunnerVersion = "0.4.0-display-modes";
 
         internal static void Execute()
         {
@@ -144,6 +145,30 @@ namespace BridgeRun
                     ShowMessage(prefix + "\n" + applySummary +
                                 "\nRezultat: " + Path.Combine(ResultsDir, Sanitize(taskId) + ".json"));
                     ReportResult(taskId, applyStatus, "APPLY_INTERFACE_BASELINE: " + applySummary, extra);
+                    return;
+                }
+
+                if (operation == "CREATE_DISPLAY_MODES" || operation == "APPLY_DISPLAY_MODE")
+                {
+                    // Mutirajuce (BEN-UI-003). Idempotentnost po taskId je vec provjerena gore.
+                    string dmSummary;
+                    string dmStatus;
+                    Dictionary<string, object> extra = operation == "CREATE_DISPLAY_MODES"
+                        ? DisplayModeManager.CreateModes(task, taskId, out dmSummary, out dmStatus)
+                        : DisplayModeManager.ApplyMode(task, taskId, out dmSummary, out dmStatus);
+
+                    if (dmStatus == "OK")
+                        MarkCompleted(taskId);
+
+                    string prefix =
+                        dmStatus == "OK"       ? "BRIDGE_RUN: " + operation + " OK." :
+                        dmStatus == "ABORTED"  ? "BRIDGE_RUN: " + operation + " PREKINUT (bez izmjena)." :
+                        dmStatus == "CONFLICT" ? "BRIDGE_RUN: " + operation + " CONFLICT (bez izmjena) - vidi rezultat." :
+                        dmStatus == "PARTIAL"  ? "BRIDGE_RUN: " + operation + " DJELOMICNO - vidi rezultat." :
+                                                 "BRIDGE_RUN: " + operation + " GRESKA - vidi rezultat.";
+                    ShowMessage(prefix + "\n" + dmSummary +
+                                "\nRezultat: " + Path.Combine(ResultsDir, Sanitize(taskId) + ".json"));
+                    ReportResult(taskId, dmStatus, operation + ": " + dmSummary, extra);
                     return;
                 }
 

@@ -67,6 +67,7 @@
     <Compile Include="BridgeRunner.cs" />
     <Compile Include="InterfaceStateReader.cs" />
     <Compile Include="InterfaceBaselineApplier.cs" />
+    <Compile Include="DisplayModeManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
 

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "taskId": "BEN-UI-003-APPLY-TRANSPARENTNO",
+  "operation": "APPLY_DISPLAY_MODE",
+  "target": {
+    "workspace": "ETAZIRANJE_RAZVOJ",
+    "workset": "TEST_OSNOVA",
+    "fileName": "Test_2.dgn",
+    "forbidFileName": "ETAZIRANJE_3D_METRIC.dgn"
+  },
+  "parameters": {
+    "mode": "ETAZ_TRANSPARENTNO",
+    "view": 1,
+    "backgroundRgb": [255, 255, 255],
+    "saveSettings": true
+  }
+}

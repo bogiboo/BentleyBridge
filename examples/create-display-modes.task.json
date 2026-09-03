@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "taskId": "BEN-UI-003-CREATE-DISPLAY-MODES",
+  "operation": "CREATE_DISPLAY_MODES",
+  "target": {
+    "workspace": "ETAZIRANJE_RAZVOJ",
+    "workset": "TEST_OSNOVA",
+    "fileName": "Test_2.dgn",
+    "forbidFileName": "ETAZIRANJE_3D_METRIC.dgn"
+  },
+  "parameters": {
+    "baseDisplayStyle": "Illustration",
+    "defaultMode": "ETAZ_PUNA_ISPUNA",
+    "modes": [
+      { "name": "ETAZ_PUNA_ISPUNA",   "fillEnabled": true,  "transparencyPercent": 0,  "edgesVisible": true },
+      { "name": "ETAZ_TRANSPARENTNO", "fillEnabled": true,  "transparencyPercent": 70, "edgesVisible": true },
+      { "name": "ETAZ_BEZ_ISPUNE",    "fillEnabled": false, "transparencyPercent": 0,  "edgesVisible": true }
+    ],
+    "backgroundRgb": [255, 255, 255],
+    "preserveByLevel": true,
+    "createBackup": true,
+    "saveSettings": true
+  }
+}
