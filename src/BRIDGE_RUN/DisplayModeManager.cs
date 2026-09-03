@@ -139,6 +139,27 @@ namespace BridgeRun
                 Type dsm = FindType(DisplayStyleMgrTypeName);
                 if (dsm == null) throw new Exception("NEPOZNATO: tip DisplayStyleManager nije pronadjen");
 
+                // --- BAZNI STIL SE DOHVACA PRVI (prije ikakvog uklanjanja) ---
+                // Primarno po imenu (baseDisplayStyle, npr. "Illustration") preko CopyDisplayStyleToFile(name,dgnFile,dgnFile),
+                // jer nakon prijasnjeg APPLY-a View 1 moze koristiti bas neki od ETAZ_ stilova koje cemo ukloniti.
+                // Rezerva: View1.GetDisplayStyle() ako to nije jedan od ETAZ_ imena.
+                object baseStyle = null;
+                object byNameTry = TryStatic(dsm, "CopyDisplayStyleToFile", new object[] { baseStyleName, dgnFile, dgnFile });
+                if (byNameTry != null && !(byNameTry is string)) baseStyle = byNameTry;
+                if (baseStyle == null)
+                {
+                    object cur = TryCall(view1, "GetDisplayStyle");
+                    if (cur != null && !(cur is string))
+                    {
+                        string curName = Convert.ToString(SafeGet(cur, "Name"), CultureInfo.InvariantCulture);
+                        if (Array.IndexOf(KnownModes, curName) < 0) baseStyle = cur;
+                    }
+                }
+                if (baseStyle == null || baseStyle is string)
+                    throw new Exception("NEPOZNATO: ne mogu dohvatiti bazni DisplayStyle '" + baseStyleName +
+                                        "' (CopyDisplayStyleToFile) niti prihvatljiv trenutni stil View 1. Rezultat: " + byNameTry);
+                string baseNameActual = Convert.ToString(Prop(baseStyle, "Name"), CultureInfo.InvariantCulture);
+
                 // --- postojeci ciljni stilovi ---
                 var existing = new List<string>();
                 foreach (var m in modes)
@@ -159,7 +180,9 @@ namespace BridgeRun
                 }
                 if (existing.Count > 0)
                 {
-                    // Dokumentirana migracija: eksplicitno ukloni pa ponovno stvori.
+                    // Dokumentirana migracija: prvo vrati View 1 na bazni stil (da ne ostane siroce
+                    // referencirajuci stil kojeg brisemo), pa ukloni ETAZ_ stilove, pa ponovno stvori.
+                    TryStatic(dsm, "ApplyDisplayStyleToView", new[] { baseStyle, view1 });
                     var removed = new List<object>();
                     foreach (string name in existing)
                     {
@@ -170,25 +193,19 @@ namespace BridgeRun
                     }
                     extra["overwriteMigration"] = removed;
                     steps.Add(Step("displayStyles.overwrite", "OK",
-                        "overwriteExisting=true: uklonjeni postojeci stilovi (" + string.Join(", ", existing.ToArray()) + ") prije ponovnog stvaranja"));
+                        "overwriteExisting=true: View 1 vracen na '" + baseNameActual + "', uklonjeni (" +
+                        string.Join(", ", existing.ToArray()) + ") prije ponovnog stvaranja"));
                 }
-
-                // --- bazni stil ---
-                object baseStyle = TryCall(view1, "GetDisplayStyle");
-                if (baseStyle == null || baseStyle is string)
-                    baseStyle = TryStatic(dsm, "GetDisplayStyleForViewInformation", new[] { view1 });
-                if (baseStyle == null || baseStyle is string)
-                    throw new Exception("NEPOZNATO: ne mogu dohvatiti bazni DisplayStyle View 1 (GetDisplayStyle / GetDisplayStyleForViewInformation)");
-                string baseNameActual = Convert.ToString(Prop(baseStyle, "Name"), CultureInfo.InvariantCulture);
                 object baseModeEnum = Prop(baseStyle, "DisplayMode");
                 extra["baseStyle"] = new Dictionary<string, object>
                 {
                     { "requestedName", baseStyleName },
                     { "actualName", baseNameActual },
                     { "displayMode", Convert.ToString(baseModeEnum, CultureInfo.InvariantCulture) },
+                    { "acquiredBy", "DisplayStyleManager.CopyDisplayStyleToFile(name,dgnFile,dgnFile) ili View1.GetDisplayStyle() rezerva" },
                     { "note", string.Equals(baseNameActual, baseStyleName, StringComparison.OrdinalIgnoreCase)
                               ? "poklapa se sa zahtjevom"
-                              : "PAZI: View 1 trenutno koristi '" + baseNameActual + "', ne '" + baseStyleName + "'. Kloniram stvarni trenutni." }
+                              : "PAZI: bazni stil je '" + baseNameActual + "', ne '" + baseStyleName + "'." }
                 };
 
                 // --- stvori 3 stila ---
